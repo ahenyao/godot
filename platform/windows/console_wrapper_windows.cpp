@@ -47,23 +47,6 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	// Get product name from the resources and set console title.
-	DWORD ver_info_handle = 0;
-	DWORD ver_info_size = GetFileVersionInfoSizeW(exe_name, &ver_info_handle);
-	if (ver_info_size > 0) {
-		LPBYTE ver_info = (LPBYTE)malloc(ver_info_size);
-		if (ver_info) {
-			if (GetFileVersionInfoW(exe_name, ver_info_handle, ver_info_size, ver_info)) {
-				LPCWSTR text_ptr = nullptr;
-				UINT text_size = 0;
-				if (VerQueryValueW(ver_info, L"\\StringFileInfo\\040904b0\\ProductName", (void **)&text_ptr, &text_size) && (text_size > 0)) {
-					SetConsoleTitleW(text_ptr);
-				}
-			}
-			free(ver_info);
-		}
-	}
-
 	// Enable virtual terminal sequences processing.
 	HANDLE stdout_handle = GetStdHandle(STD_OUTPUT_HANDLE);
 	DWORD out_mode = 0;

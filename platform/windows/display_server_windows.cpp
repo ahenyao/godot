@@ -213,7 +213,7 @@ Vector2i _logical_to_physical(const Vector2i &p_point) {
 	POINT p1;
 	p1.x = p_point.x;
 	p1.y = p_point.y;
-	LogicalToPhysicalPointForPerMonitorDPI(nullptr, &p1);
+	LogicalToPhysicalPoint(nullptr, &p1);
 	return Vector2i(p1.x, p1.y);
 }
 
@@ -1527,7 +1527,7 @@ Color DisplayServerWindows::screen_get_pixel(const Point2i &p_position) const {
 	POINT p;
 	p.x = pos.x;
 	p.y = pos.y;
-	LogicalToPhysicalPointForPerMonitorDPI(nullptr, &p);
+	LogicalToPhysicalPoint(nullptr, &p);
 
 	HDC dc = GetDC(nullptr);
 	if (dc) {
@@ -1557,8 +1557,8 @@ Ref<Image> DisplayServerWindows::screen_get_image(int p_screen) const {
 	POINT p2;
 	p2.x = pos.x + size.x;
 	p2.y = pos.y + size.y;
-	LogicalToPhysicalPointForPerMonitorDPI(nullptr, &p1);
-	LogicalToPhysicalPointForPerMonitorDPI(nullptr, &p2);
+	LogicalToPhysicalPoint(nullptr, &p1);
+	LogicalToPhysicalPoint(nullptr, &p2);
 
 	Ref<Image> img;
 	HDC dc = GetDC(nullptr);
@@ -1611,8 +1611,8 @@ Ref<Image> DisplayServerWindows::screen_get_image_rect(const Rect2i &p_rect) con
 	POINT p2;
 	p2.x = pos.x + size.x;
 	p2.y = pos.y + size.y;
-	LogicalToPhysicalPointForPerMonitorDPI(nullptr, &p1);
-	LogicalToPhysicalPointForPerMonitorDPI(nullptr, &p2);
+	LogicalToPhysicalPoint(nullptr, &p1);
+	LogicalToPhysicalPoint(nullptr, &p2);
 
 	Ref<Image> img;
 	HDC dc = GetDC(nullptr);
@@ -2185,8 +2185,8 @@ Size2i DisplayServerWindows::window_get_title_size(const String &p_title, Displa
 			ClientToScreen(wd.hWnd, (POINT *)&rect.left);
 			ClientToScreen(wd.hWnd, (POINT *)&rect.right);
 
-			PhysicalToLogicalPointForPerMonitorDPI(nullptr, (POINT *)&rect.left);
-			PhysicalToLogicalPointForPerMonitorDPI(nullptr, (POINT *)&rect.right);
+			PhysicalToLogicalPoint(nullptr, (POINT *)&rect.left);
+			PhysicalToLogicalPoint(nullptr, (POINT *)&rect.right);
 
 			size.x += (rect.right - rect.left);
 			size.y = MAX(size.y, rect.bottom - rect.top);
@@ -7836,51 +7836,6 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Dis
 
 	// Enforce default keep screen on value.
 	screen_set_keep_on(GLOBAL_GET("display/window/energy_saving/keep_screen_on"));
-
-	// Load UXTheme.
-	if (os_ver.dwBuildNumber >= 10240) { // Not available on Wine, use only if real Windows 10/11 detected.
-		HMODULE ux_theme_lib = LoadLibraryW(L"uxtheme.dll");
-		if (ux_theme_lib) {
-			ShouldAppsUseDarkMode = (ShouldAppsUseDarkModePtr)(void *)GetProcAddress(ux_theme_lib, MAKEINTRESOURCEA(132));
-			GetImmersiveColorFromColorSetEx = (GetImmersiveColorFromColorSetExPtr)(void *)GetProcAddress(ux_theme_lib, MAKEINTRESOURCEA(95));
-			GetImmersiveColorTypeFromName = (GetImmersiveColorTypeFromNamePtr)(void *)GetProcAddress(ux_theme_lib, MAKEINTRESOURCEA(96));
-			GetImmersiveUserColorSetPreference = (GetImmersiveUserColorSetPreferencePtr)(void *)GetProcAddress(ux_theme_lib, MAKEINTRESOURCEA(98));
-			if (os_ver.dwBuildNumber >= 17763) { // Windows 10 Redstone 5 (1809)+ only.
-				AllowDarkModeForAppPtr AllowDarkModeForApp = nullptr;
-				SetPreferredAppModePtr SetPreferredAppMode = nullptr;
-				FlushMenuThemesPtr FlushMenuThemes = nullptr;
-				if (os_ver.dwBuildNumber < 18362) { // Windows 10 Redstone 5 (1809) and 19H1 (1903) only.
-					AllowDarkModeForApp = (AllowDarkModeForAppPtr)(void *)GetProcAddress(ux_theme_lib, MAKEINTRESOURCEA(135));
-				} else { // Windows 10 19H2 (1909)+ only.
-					SetPreferredAppMode = (SetPreferredAppModePtr)(void *)GetProcAddress(ux_theme_lib, MAKEINTRESOURCEA(135));
-					FlushMenuThemes = (FlushMenuThemesPtr)(void *)GetProcAddress(ux_theme_lib, MAKEINTRESOURCEA(136));
-				}
-				RefreshImmersiveColorPolicyStatePtr RefreshImmersiveColorPolicyState = (RefreshImmersiveColorPolicyStatePtr)(void *)GetProcAddress(ux_theme_lib, MAKEINTRESOURCEA(104));
-				if (ShouldAppsUseDarkMode) {
-					bool dark_mode = ShouldAppsUseDarkMode();
-					if (SetPreferredAppMode) {
-						SetPreferredAppMode(dark_mode ? APPMODE_ALLOWDARK : APPMODE_DEFAULT);
-					} else if (AllowDarkModeForApp) {
-						AllowDarkModeForApp(dark_mode);
-					}
-					if (RefreshImmersiveColorPolicyState) {
-						RefreshImmersiveColorPolicyState();
-					}
-					if (FlushMenuThemes) {
-						FlushMenuThemes();
-					}
-				}
-			}
-
-			ux_theme_available = ShouldAppsUseDarkMode && GetImmersiveColorFromColorSetEx && GetImmersiveColorTypeFromName && GetImmersiveUserColorSetPreference;
-			if (os_ver.dwBuildNumber >= 18363) {
-				dark_title_available = true;
-				if (os_ver.dwBuildNumber < 19041) {
-					use_legacy_dark_mode_before_20H1 = true;
-				}
-			}
-		}
-	}
 
 	tablet_drivers.push_back("auto");
 	tablet_drivers.push_back("winink");
